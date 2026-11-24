@@ -124,11 +124,8 @@ button {
 }
 
 /* ---------- Barra superior ---------- */
+/* El encabezado es un bloque: la fila del título (.topbar-row) y, opcionalmente, la búsqueda debajo. */
 .topbar {
-  display: grid;
-  grid-template-columns: 48px 1fr 48px;
-  align-items: center;
-  gap: 12px;
   padding: calc(5px + env(safe-area-inset-top)) var(--gutter);
   background: var(--surface);
   flex: none;
