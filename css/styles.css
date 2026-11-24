@@ -111,8 +111,8 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   max-width: 100%;
   padding: 9px 30px;
   border-radius: var(--pill);
-  background: var(--ink);
-  color: #fff;
+  background: #fff;
+  color: var(--ink);
   font-size: 13px;
   font-weight: 800;
   letter-spacing: .03em;
