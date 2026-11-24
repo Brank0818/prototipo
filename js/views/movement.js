@@ -14,7 +14,7 @@
 
   function newRow(concept) {
     keySeq += 1;
-    return { key: 'r' + keySeq, concept, amount: '', cylinder: '', quantity: '1' };
+    return { key: 'r' + keySeq, concept, amount: '', cylinder: '', quantity: '0' };
   }
 
   function conceptTile(row, concept) {
@@ -172,7 +172,7 @@
       const stepBtn = e.target.closest('[data-step]');
       if (stepBtn) {
         const current = parseInt(row.quantity, 10) || 0;
-        row.quantity = String(Math.max(1, Math.min(999, current + Number(stepBtn.dataset.step))));
+        row.quantity = String(Math.max(0, Math.min(999, current + Number(stepBtn.dataset.step))));
         stepBtn.parentElement.querySelector('input').value = row.quantity;
         return;
       }
