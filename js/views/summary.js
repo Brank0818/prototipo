@@ -55,7 +55,6 @@
     const maxMoney = top.length ? top[0].balance.money : 1;
 
     const body = `
-      <p class="date-line">${U.longDate(new Date())}</p>
       <div class="summary-layout">
         <section class="card">
           ${ui.sectionHead('Estadísticas')}
