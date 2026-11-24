@@ -1,4 +1,8 @@
-/* Pantalla principal: lista de clientes (con deuda primero, "Clientes sin deuda" en acordeón). */
+/*
+ * Pantalla principal: lista de clientes.
+ * Sin búsqueda: clientes con deuda primero y "Clientes sin deuda" en acordeón.
+ * Con búsqueda: una sola lista de resultados, en orden alfabético.
+ */
 (function (App) {
   'use strict';
 
@@ -9,19 +13,14 @@
   const esc = U.escapeHtml;
   App.views = App.views || {};
 
-  const FILTERS = [
-    { id: 'todos', label: 'Todos' },
-    { id: 'dinero', label: 'Dinero' },
-    { id: 'balones', label: 'Balones' }
-  ];
+  const view = { query: '', accordionOpen: false };
 
-  /* Estado de la pantalla (se conserva al volver). */
-  const view = { query: '', filter: 'todos', accordionOpen: false };
+  function href(client) {
+    return '#/clientes/' + esc(client.id) + '/movimiento';
+  }
 
-  function passesFilter(balance) {
-    if (view.filter === 'dinero') return balance.money > 0;
-    if (view.filter === 'balones') return D.cylinderTotal(balance) > 0;
-    return true;
+  function settledMark(situation) {
+    return situation.inactive ? ui.tag('Inactivo', 'muted') : `<span class="row-check">${icon('check')}</span>`;
   }
 
   function debtCard(item) {
@@ -29,7 +28,7 @@
     const b = situation.balance;
     return `
       <li>
-        <a class="client-card" href="#/clientes/${esc(client.id)}/movimiento">
+        <a class="client-card" href="${href(client)}">
           <div class="cc-top">
             <span class="cc-name">${esc(client.name)}</span>
             <span class="cc-money${b.money === 0 ? ' is-zero' : ''}">${U.formatMoney(b.money)}</span>
@@ -42,36 +41,50 @@
       </li>`;
   }
 
-  function noDebtRow(item) {
-    const { client, situation } = item;
-    let right = `<span class="row-check">${icon('check')}</span>`;
-    if (situation.inactive) right = ui.tag('Inactivo', 'muted');
-    else if (situation.pendingClose) right = ui.tag('Por cancelar', 'dotted');
+  /* Tarjeta de resultado de búsqueda: misma tarjeta para clientes con y sin deuda. */
+  function resultCard(item) {
+    if (item.situation.hasDebt) return debtCard(item);
     return `
       <li>
-        <a class="row-pill${situation.inactive ? ' is-inactive' : ''}" href="#/clientes/${esc(client.id)}/movimiento">
-          <span class="row-name">${esc(client.name)}</span>
-          ${right}
+        <a class="client-card is-settled${item.situation.inactive ? ' is-inactive' : ''}" href="${href(item.client)}">
+          <div class="cc-top">
+            <span class="cc-name">${esc(item.client.name)}</span>
+            ${settledMark(item.situation)}
+          </div>
         </a>
       </li>`;
   }
 
-  function results() {
-    const groups = D.groupedClients(view.query);
-    const debtors = groups.withDebt.filter((i) => passesFilter(i.situation.balance));
-    const searching = !!view.query.trim();
-    const open = view.accordionOpen || (searching && groups.withoutDebt.length > 0);
+  function noDebtRow(item) {
+    return `
+      <li>
+        <a class="row-pill${item.situation.inactive ? ' is-inactive' : ''}" href="${href(item.client)}">
+          <span class="row-name">${esc(item.client.name)}</span>
+          ${settledMark(item.situation)}
+        </a>
+      </li>`;
+  }
 
-    const debtBlock = debtors.length
-      ? `<ul class="client-grid">${debtors.map(debtCard).join('')}</ul>`
-      : ui.emptyState(searching ? 'search' : 'check',
-        searching ? 'Sin resultados con deuda' : 'Ningún cliente con deuda',
-        searching ? 'No hay clientes con deuda que coincidan con “' + view.query.trim() + '”.' : 'Las deudas registradas aparecerán aquí.');
-
+  function searchResults(query) {
+    const found = D.searchClients(query);
     return `
       <section class="block">
-        ${ui.sectionHead('Con deuda', ui.countPill(debtors.length))}
-        ${debtBlock}
+        ${ui.sectionHead('Resultados', ui.countPill(found.length))}
+        ${found.length
+          ? `<ul class="client-grid">${found.map(resultCard).join('')}</ul>`
+          : ui.emptyState('search', 'Sin resultados', 'Ningún cliente coincide con “' + query + '”.')}
+      </section>`;
+  }
+
+  function groupedList() {
+    const groups = D.groupedClients('');
+    const open = view.accordionOpen;
+    return `
+      <section class="block">
+        ${ui.sectionHead('Con deuda', ui.countPill(groups.withDebt.length))}
+        ${groups.withDebt.length
+          ? `<ul class="client-grid">${groups.withDebt.map(debtCard).join('')}</ul>`
+          : ui.emptyState('check', 'Ningún cliente con deuda', 'Las deudas registradas aparecerán aquí.')}
       </section>
       <section class="accordion${open ? ' is-open' : ''}">
         <button class="accordion-head" type="button" aria-expanded="${open}" aria-controls="no-debt-list">
@@ -82,29 +95,32 @@
         <div class="accordion-body" id="no-debt-list">
           ${groups.withoutDebt.length
             ? `<ul class="row-list">${groups.withoutDebt.map(noDebtRow).join('')}</ul>`
-            : `<p class="muted-note">${searching ? 'Sin coincidencias.' : 'Todos los clientes tienen deuda pendiente.'}</p>`}
+            : '<p class="muted-note">Todos los clientes tienen deuda pendiente.</p>'}
         </div>
       </section>`;
   }
 
+  function results() {
+    const query = view.query.trim();
+    return query ? searchResults(query) : groupedList();
+  }
+
   function render() {
-    const body = `
-      <p class="date-line">${U.longDate(new Date())}</p>
+    /* La búsqueda no se conserva: al volver a esta pantalla empieza vacía. */
+    view.query = '';
+    const search = `
       <div class="search">
         ${icon('search')}
         <input id="client-search" class="input search-input" type="search" placeholder="Buscar por nombre o documento"
-          value="${esc(view.query)}" autocomplete="off" aria-label="Buscar clientes por nombre o documento">
-        <button class="search-clear" type="button" aria-label="Limpiar búsqueda"${view.query ? '' : ' hidden'}>${icon('close')}</button>
-      </div>
-      <div class="chips" role="group" aria-label="Filtrar clientes con deuda">
-        ${FILTERS.map((f) => `<button class="chip${f.id === view.filter ? ' is-selected' : ''}" type="button" data-filter="${f.id}" aria-pressed="${f.id === view.filter}">${f.label}</button>`).join('')}
-      </div>
-      <div id="client-results">${results()}</div>`;
+          autocomplete="off" aria-label="Buscar clientes por nombre o documento">
+        <button class="search-clear" type="button" aria-label="Limpiar búsqueda" hidden>${icon('close')}</button>
+      </div>`;
 
     return ui.layout({
       title: 'GLP CONTROL',
       nav: 'clientes',
-      body,
+      headerExtra: search,
+      body: `<div id="client-results">${results()}</div>`,
       fab: `<a class="fab" href="#/clientes/nuevo" aria-label="Registrar nuevo cliente">${icon('plus')}</a>`
     });
   }
@@ -114,30 +130,17 @@
     const input = root.querySelector('#client-search');
     const clear = root.querySelector('.search-clear');
     const refresh = () => { box.innerHTML = results(); };
+    const setQuery = (value) => {
+      view.query = value;
+      input.value = value;
+      clear.hidden = !value;
+      refresh();
+    };
 
-    input.addEventListener('input', () => {
-      view.query = input.value;
-      clear.hidden = !view.query;
-      refresh();
-    });
-    clear.addEventListener('click', () => {
-      view.query = '';
-      input.value = '';
-      clear.hidden = true;
-      input.focus();
-      refresh();
-    });
-    root.querySelector('.chips').addEventListener('click', (e) => {
-      const chip = e.target.closest('[data-filter]');
-      if (!chip) return;
-      view.filter = chip.dataset.filter;
-      root.querySelectorAll('[data-filter]').forEach((c) => {
-        const on = c.dataset.filter === view.filter;
-        c.classList.toggle('is-selected', on);
-        c.setAttribute('aria-pressed', String(on));
-      });
-      refresh();
-    });
+    input.addEventListener('input', () => setQuery(input.value));
+    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') setQuery(''); });
+    clear.addEventListener('click', () => { setQuery(''); input.focus(); });
+
     box.addEventListener('click', (e) => {
       if (!e.target.closest('.accordion-head')) return;
       const section = box.querySelector('.accordion');

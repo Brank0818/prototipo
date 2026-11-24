@@ -64,7 +64,7 @@
         ${icon('search')}
         <input id="audit-search" class="input search-input" type="search" placeholder="Buscar acción, cliente o usuario" value="${esc(view.query)}" autocomplete="off" aria-label="Buscar en auditoría">
       </div>
-      <div class="chips chips-scroll" role="group" aria-label="Filtrar por tipo">
+      <div class="chips" role="group" aria-label="Filtrar por tipo">
         ${TYPES.map((t) => `<button class="chip${t.id === view.type ? ' is-selected' : ''}" type="button" data-type="${t.id}" aria-pressed="${t.id === view.type}">${t.label}</button>`).join('')}
       </div>
       <section class="card" id="audit-list">${list()}</section>`;

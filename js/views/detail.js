@@ -1,4 +1,8 @@
-/* Detalle del cliente: situación actual, datos, contratos e historial de movimientos. */
+/*
+ * Detalle del cliente: resumen compacto de la deuda actual y contratos en acordeones,
+ * cada uno con su historial de movimientos.
+ * Ver datos, Editar y Desactivar están en el menú kebab.
+ */
 (function (App) {
   'use strict';
 
@@ -9,65 +13,50 @@
   const esc = U.escapeHtml;
   App.views = App.views || {};
 
-  /* Contrato elegido con las fichas mientras la pantalla está abierta. */
-  const selected = {};
-
   function docLabel(client) {
     if (!client.docType || !client.docNumber) return '';
     const type = D.DOC_TYPES.find((t) => t.id === client.docType);
     return (type ? type.label : client.docType) + ' ' + client.docNumber;
   }
 
+  /* ---------- Resumen compacto ---------- */
+
   function summaryCard(client) {
     const situation = D.clientSituation(client);
     const b = situation.balance;
-    const meta = [docLabel(client), client.phone].filter(Boolean).map(esc).join(' · ');
+    const inactive = client.status !== 'activo';
+    const meta = [docLabel(client), client.phone].filter(Boolean).map((v) => `<span>${esc(v)}</span>`).join(' · ');
+    const status = inactive
+      ? ui.tag('Inactivo', 'muted')
+      : ui.tag(situation.hasDebt ? 'Con deuda' : 'Sin deuda', situation.hasDebt ? 'dark' : '');
+
     return `
-      <section class="card summary-card">
+      <section class="debt-summary">
         <div class="summary-head">
-          <div>
+          <div class="summary-title">
             <h2 class="summary-name">${esc(client.name)}</h2>
             ${meta ? `<p class="summary-meta">${meta}</p>` : ''}
           </div>
-          ${client.status === 'activo' ? ui.tag(situation.hasDebt ? 'Con deuda' : 'Sin deuda', situation.hasDebt ? 'dark' : '') : ui.tag('Inactivo', 'muted')}
+          ${status}
         </div>
-        <div class="balance-grid">
-          <div class="money-card${b.money === 0 ? ' is-zero' : ''}">
-            <span class="money-label">${icon('cash')}Saldo de dinero</span>
-            <span class="money-value">${U.formatMoney(b.money)}</span>
-            ${situation.active && situation.hasDebt ? `<span class="money-age">${icon('clock')}${ui.since(situation.active.createdAt)}</span>` : ''}
+        <div class="balance-strip${situation.hasDebt ? '' : ' is-zero'}">
+          <div class="strip-item strip-money">
+            <span class="strip-label">Saldo de dinero</span>
+            <b>${U.formatMoney(b.money)}</b>
           </div>
           ${D.CYLINDERS.map((c) => `
-            <div class="cyl-stat${b.cyl[c.id] === 0 ? ' is-zero' : ''}">
-              <span class="cyl-stat-label">${c.label}</span>
-              <span class="ring"><b>${b.cyl[c.id]}</b></span>
+            <div class="strip-item${b.cyl[c.id] === 0 ? ' is-zero' : ''}">
+              <span class="strip-label">${c.label}</span>
+              <b>${b.cyl[c.id]}</b>
             </div>`).join('')}
         </div>
+        ${inactive
+          ? `<p class="hint">${icon('power')}<span>Cliente desactivado: reactívalo desde el menú para registrar movimientos.</span></p>`
+          : `<a class="btn btn-primary btn-block" href="#/clientes/${esc(client.id)}/movimiento">${icon('plus')}<span>Nuevo movimiento</span></a>`}
       </section>`;
   }
 
-  function infoCard(client) {
-    const rows = [
-      ['idcard', 'Documento', docLabel(client) || 'Sin documento'],
-      ['phone', 'Teléfono', client.phone || 'Sin teléfono'],
-      ['pin', 'Dirección', client.address || 'Sin dirección'],
-      ['clock', 'Cliente desde', U.formatDate(client.createdAt)]
-    ];
-    const inactive = client.status !== 'activo';
-    return `
-      <section class="card info-card">
-        ${ui.sectionHead('Datos del cliente')}
-        <ul class="info-list">
-          ${rows.map(([ic, label, value]) => `
-            <li><span class="info-ico">${icon(ic)}</span><span class="info-label">${label}</span><span class="info-value">${esc(value)}</span></li>`).join('')}
-        </ul>
-        <div class="action-row">
-          ${inactive ? '' : `<a class="btn btn-primary" href="#/clientes/${esc(client.id)}/movimiento">${icon('plus')}<span>Movimiento</span></a>`}
-          <a class="btn btn-secondary" href="#/clientes/${esc(client.id)}/editar">${icon('pencil')}<span>Editar</span></a>
-          <button class="btn btn-secondary" type="button" data-action="toggle-status">${icon('power')}<span>${inactive ? 'Reactivar' : 'Desactivar'}</span></button>
-        </div>
-      </section>`;
-  }
+  /* ---------- Contratos (acordeones) ---------- */
 
   function detailLine(d) {
     const c = D.CONCEPTS[d.concept];
@@ -86,130 +75,110 @@
       <li class="mov">
         <div class="mov-head">
           <span class="mov-date">${U.formatDateTime(m.date)}</span>
-          <span class="mov-id">${esc(m.id)}</span>
+          <span class="mov-meta">${icon('user')}<span>${esc(m.responsible)}</span></span>
         </div>
         <ul class="mov-lines">${m.details.map(detailLine).join('')}</ul>
         ${m.notes ? `<p class="mov-notes">${icon('note')}<span>${esc(m.notes)}</span></p>` : ''}
-        <p class="mov-meta">${icon('user')}<span>${esc(m.responsible)}</span></p>
       </li>`;
   }
 
-  function contractSection(client) {
-    if (!client.contracts.length) {
+  function contractItem(contract, open) {
+    const active = contract.status === 'activo';
+    /* Activo: antigüedad en vivo. Cancelado: tiempo que estuvo vigente. */
+    const age = active ? ui.since(contract.createdAt) : `<span>${esc(U.formatDuration(contract.createdAt, contract.cancelledAt))}</span>`;
+    const movements = contract.movements.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const bodyId = 'contract-' + esc(contract.id);
+    return `
+      <li class="contract${open ? ' is-open' : ''}${active ? ' is-active' : ''}">
+        <button class="contract-head" type="button" aria-expanded="${open}" aria-controls="${bodyId}">
+          <span class="contract-code">${esc(contract.code)}</span>
+          <span class="contract-age">${icon('clock')}${age}</span>
+          ${ui.tag(active ? 'Activo' : 'Cancelado', active ? 'dark' : 'muted')}
+          ${icon('chevronDown', 'accordion-chevron')}
+        </button>
+        <div class="contract-body" id="${bodyId}">
+          <p class="contract-dates">
+            Inicio ${U.formatDateTime(contract.createdAt)}${active ? '' : ' · Cancelado ' + U.formatDateTime(contract.cancelledAt)}
+          </p>
+          ${movements.length ? `<ol class="mov-list">${movements.map(movementItem).join('')}</ol>` : ui.emptyState('history', 'Sin movimientos', '')}
+        </div>
+      </li>`;
+  }
+
+  function contractsSection(client) {
+    const contracts = client.contracts.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (!contracts.length) {
       return `
-        <section class="card">
+        <section class="block">
           ${ui.sectionHead('Contratos')}
           ${ui.emptyState('file', 'Sin contratos', 'Se creará un contrato automáticamente al registrar la primera deuda.')}
         </section>`;
     }
-    const contracts = client.contracts.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    let current = contracts.find((c) => c.id === selected[client.id]);
-    if (!current) current = D.getActiveContract(client) || contracts[0];
-    selected[client.id] = current.id;
-
-    const balance = D.contractBalance(current);
-    const zero = D.isZeroBalance(balance);
-    const isActive = current.status === 'activo';
-    const movements = current.movements.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    const facts = [
-      ['Inicio', U.formatDateTime(current.createdAt)],
-      isActive ? ['Antigüedad', ui.since(current.createdAt)] : ['Duración', esc(U.formatDuration(current.createdAt, current.cancelledAt))],
-      isActive ? null : ['Cancelado', U.formatDateTime(current.cancelledAt) + ' · ' + esc(current.cancelledBy)],
-      ['Movimientos', String(current.movements.length)],
-      ['Creado por', esc(current.createdBy)]
-    ].filter(Boolean);
-
-    let cancelBlock = '';
-    if (isActive) {
-      cancelBlock = zero
-        ? `<div class="contract-cancel">
-             <p class="hint">${icon('check')}<span>Todos los saldos están en cero. Ya puedes cancelar este contrato.</span></p>
-             <button class="btn btn-primary" type="button" data-action="cancel-contract" data-id="${esc(current.id)}">${icon('file')}<span>Cancelar contrato</span></button>
-           </div>`
-        : `<div class="contract-cancel">
-             <p class="hint">${icon('lock')}<span>Para cancelar el contrato, todos los saldos deben estar en cero.</span></p>
-             <button class="btn btn-disabled" type="button" disabled aria-disabled="true">${icon('file')}<span>Cancelar contrato</span></button>
-           </div>`;
-    } else {
-      cancelBlock = `<p class="hint">${icon('lock')}<span>Contrato cancelado: no admite nuevos movimientos.</span></p>`;
-    }
-
+    /* Abierto por defecto: el contrato activo o, si no hay, el más reciente. */
+    const openId = (D.getActiveContract(client) || contracts[0]).id;
     return `
-      <section class="card">
+      <section class="block">
         ${ui.sectionHead('Contratos', ui.countPill(contracts.length))}
-        <div class="contract-chips" role="tablist" aria-label="Contratos del cliente">
-          ${contracts.map((c) => `
-            <button type="button" class="day-chip wide${c.id === current.id ? ' is-selected' : ''}" role="tab" aria-selected="${c.id === current.id}" data-contract="${esc(c.id)}">
-              <span>${c.status === 'activo' ? 'Activo' : 'Cancelado'}</span><b>${esc(c.code)}</b>
-            </button>`).join('')}
-        </div>
-
-        <div class="contract-card">
-          <div class="contract-top">
-            <h3>${esc(current.code)}</h3>
-            ${ui.tag(isActive ? 'Activo' : 'Cancelado', isActive ? 'dark' : 'muted')}
-          </div>
-          <dl class="facts">
-            ${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}
-          </dl>
-          ${cancelBlock}
-        </div>
-
-        <h3 class="sub-head">Historial de movimientos</h3>
-        ${movements.length ? `<ol class="mov-list">${movements.map(movementItem).join('')}</ol>` : ui.emptyState('history', 'Sin movimientos', '')}
+        <ul class="contract-list">${contracts.map((c) => contractItem(c, c.id === openId)).join('')}</ul>
       </section>`;
+  }
+
+  /* ---------- Datos del cliente (modal) ---------- */
+
+  function clientDataHtml(client) {
+    const rows = [
+      ['idcard', 'Documento', docLabel(client) || 'Sin documento'],
+      ['phone', 'Teléfono', client.phone || 'Sin teléfono'],
+      ['pin', 'Dirección', client.address || 'Sin dirección'],
+      ['clock', 'Cliente desde', U.formatDate(client.createdAt)],
+      ['power', 'Estado', client.status === 'activo' ? 'Activo' : 'Inactivo']
+    ];
+    return `
+      <ul class="info-list">
+        ${rows.map(([ic, label, value]) => `
+          <li><span class="info-ico">${icon(ic)}</span><span class="info-label">${label}</span><span class="info-value">${esc(value)}</span></li>`).join('')}
+      </ul>`;
   }
 
   function render(params) {
     const client = D.getClient(params.id);
     if (!client) return null;
-    /* Al abrir la pantalla se muestra el contrato activo (o el más reciente). */
-    delete selected[client.id];
-    const body = `
-      <div class="detail-layout">
-        <div class="detail-col">
-          ${summaryCard(client)}
-          ${infoCard(client)}
-        </div>
-        <div class="detail-col" id="contracts">${contractSection(client)}</div>
-      </div>`;
-    return ui.layout({ title: 'DETALLE', back: '#/clientes', nav: 'clientes', body });
+    const inactive = client.status !== 'activo';
+    return ui.layout({
+      title: 'DETALLE',
+      back: '#/clientes',
+      nav: 'clientes',
+      narrow: true,
+      menuHeading: 'Cliente',
+      menuItems: [
+        { action: 'client-data', icon: 'idcard', label: 'Ver datos' },
+        { href: '#/clientes/' + esc(client.id) + '/editar', icon: 'pencil', label: 'Editar' },
+        { action: 'client-status', icon: 'power', label: inactive ? 'Reactivar' : 'Desactivar' }
+      ],
+      body: summaryCard(client) + contractsSection(client)
+    });
   }
 
   function mount(root, params) {
-    const rerender = () => App.router.render();
-
-    root.querySelector('#content').addEventListener('click', (e) => {
-      const chip = e.target.closest('[data-contract]');
-      if (chip) {
-        selected[params.id] = chip.dataset.contract;
-        root.querySelector('#contracts').innerHTML = contractSection(D.getClient(params.id));
+    /* Se escucha en el encabezado (menú kebab) y en el contenido; ambos se recrean en cada render. */
+    const onClick = (e) => {
+      const head = e.target.closest('.contract-head');
+      if (head) {
+        const item = head.parentElement;
+        const open = !item.classList.contains('is-open');
+        item.classList.toggle('is-open', open);
+        head.setAttribute('aria-expanded', String(open));
         return;
       }
 
-      const cancelBtn = e.target.closest('[data-action="cancel-contract"]');
-      if (cancelBtn) {
-        const client = D.getClient(params.id);
-        const contract = client.contracts.find((c) => c.id === cancelBtn.dataset.id);
-        ui.confirm({
-          title: '¿Cancelar contrato?',
-          message: 'El contrato ' + contract.code + ' quedará cerrado y se conservará en el historial. Si el cliente vuelve a adquirir una deuda, se creará un contrato nuevo.',
-          confirmText: 'Cancelar contrato',
-          cancelText: 'Volver',
-          icon: 'file'
-        }).then((ok) => {
-          if (!ok) return;
-          const result = D.cancelContract(params.id, contract.id);
-          if (!result.ok) { ui.alert({ title: 'No se pudo cancelar', message: result.message }); return; }
-          ui.toast('Contrato ' + contract.code + ' cancelado');
-          rerender();
-        });
+      const client = D.getClient(params.id);
+
+      if (e.target.closest('[data-action="client-data"]')) {
+        ui.modal({ title: client.name, body: clientDataHtml(client), icon: 'idcard', alertOnly: true, confirmText: 'Cerrar' });
         return;
       }
 
-      if (e.target.closest('[data-action="toggle-status"]')) {
-        const client = D.getClient(params.id);
+      if (e.target.closest('[data-action="client-status"]')) {
         const deactivate = client.status === 'activo';
         ui.confirm({
           title: deactivate ? '¿Desactivar cliente?' : '¿Reactivar cliente?',
@@ -223,10 +192,12 @@
           const result = D.setClientStatus(params.id, deactivate ? 'inactivo' : 'activo');
           if (!result.ok) { ui.alert({ title: 'No se pudo desactivar', message: result.message }); return; }
           ui.toast(deactivate ? 'Cliente desactivado' : 'Cliente reactivado');
-          rerender();
+          App.router.render();
         });
       }
-    });
+    };
+    root.querySelector('.topbar').addEventListener('click', onClick);
+    root.querySelector('#content').addEventListener('click', onClick);
   }
 
   App.views.detail = { title: 'Detalle', render, mount };

@@ -98,7 +98,6 @@
       active,
       balance,
       hasDebt,
-      pendingClose: !!active && !hasDebt,
       inactive: client.status !== 'activo'
     };
   }
@@ -128,6 +127,14 @@
     withDebt.sort((a, b) => new Date(a.situation.active.createdAt) - new Date(b.situation.active.createdAt));
     withoutDebt.sort((a, b) => (a.situation.inactive - b.situation.inactive) || a.client.name.localeCompare(b.client.name, 'es'));
     return { withDebt, withoutDebt };
+  }
+
+  /* Búsqueda: una sola lista alfabética, sin separar por deuda. */
+  function searchClients(query) {
+    return state().clients
+      .filter((client) => matchesQuery(client, query))
+      .map((client) => ({ client, situation: clientSituation(client) }))
+      .sort((a, b) => a.client.name.localeCompare(b.client.name, 'es'));
   }
 
   /* ======================= Auditoría ======================= */
@@ -188,7 +195,10 @@
     return contract;
   }
 
-  /* Registra el movimiento en el contrato activo; si no existe, crea uno nuevo. */
+  /*
+   * Registra el movimiento en el contrato activo; si no existe, crea uno nuevo.
+   * Si después del movimiento todos los saldos quedan en cero, el contrato se cancela automáticamente.
+   */
   function applyMovement(st, client, input, user, date) {
     let contract = getActiveContract(client);
     let created = false;
@@ -208,17 +218,24 @@
     buildAudit(st, {
       type: 'movimiento',
       action: 'Movimiento registrado',
-      description: movement.id + ' · ' + contract.code + ' · ' + client.name + ' · ' + plural(movement.details.length, 'concepto', 'conceptos'),
+      description: contract.code + ' · ' + client.name + ' · ' + plural(movement.details.length, 'concepto', 'conceptos'),
       user, date, clientId: client.id
     });
-    return { contract, movement, created };
+    const closed = isZeroBalance(contractBalance(contract));
+    if (closed) applyCancel(st, client, contract, user, date);
+    return { contract, movement, created, closed };
   }
 
   function applyCancel(st, client, contract, user, date) {
     contract.status = 'cancelado';
     contract.cancelledAt = date;
     contract.cancelledBy = user ? user.name : 'Sistema';
-    buildAudit(st, { type: 'contrato', action: 'Contrato cancelado', description: contract.code + ' · ' + client.name, user, date, clientId: client.id });
+    buildAudit(st, {
+      type: 'contrato',
+      action: 'Contrato cancelado automáticamente',
+      description: contract.code + ' · ' + client.name + ' · saldos en cero',
+      user, date, clientId: client.id
+    });
   }
 
   function applyClientStatus(st, client, status, user, date) {
@@ -363,7 +380,10 @@
       }
     }
 
-    return { ok: true, client, details: parsed.details, notes: String(input.notes || '').trim(), active, willCreateContract: !active };
+    const willClose = available.money - outgoing.money === 0 &&
+      CYLINDER_IDS.every((id) => available.cyl[id] - outgoing.cyl[id] === 0);
+
+    return { ok: true, client, details: parsed.details, notes: String(input.notes || '').trim(), active, willCreateContract: !active, willClose };
   }
 
   function registerMovement(clientId, input) {
@@ -372,22 +392,6 @@
     const result = applyMovement(state(), check.client, { details: check.details, notes: check.notes }, currentUser(), nowIso());
     App.store.save();
     return Object.assign({ ok: true }, result);
-  }
-
-  /* ======================= Contratos ======================= */
-
-  function cancelContract(clientId, contractId) {
-    const client = getClient(clientId);
-    if (!client) return { ok: false, message: 'El cliente no existe.' };
-    const contract = client.contracts.find((c) => c.id === contractId);
-    if (!contract) return { ok: false, message: 'El contrato no existe.' };
-    if (contract.status !== 'activo') return { ok: false, message: 'El contrato ya está cancelado.' };
-    if (!isZeroBalance(contractBalance(contract))) {
-      return { ok: false, message: 'No se puede cancelar: el contrato tiene saldos pendientes. Todos los saldos deben estar en cero.' };
-    }
-    applyCancel(state(), client, contract, currentUser(), nowIso());
-    App.store.save();
-    return { ok: true, contract };
   }
 
   /* ======================= Sesión ======================= */
@@ -461,11 +465,10 @@
   App.domain = {
     CYLINDERS, CYLINDER_IDS, CONCEPTS, CONCEPT_LIST, DOC_TYPES,
     emptyBalance, contractBalance, cylinderTotal, isZeroBalance, getActiveContract, clientBalance, clientSituation,
-    getClient, groupedClients,
+    getClient, groupedClients, searchClients,
     buildClient, buildContract, applyMovement, applyCancel, applyClientStatus, buildAudit,
     saveClient, setClientStatus,
     parseDetails, checkMovement, registerMovement,
-    cancelContract,
     login, logout, audit,
     summary
   };

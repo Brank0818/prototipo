@@ -127,7 +127,8 @@
         return;
       }
       ui.toast(params.id ? 'Cliente actualizado' : 'Cliente registrado');
-      location.hash = '#/clientes';
+      /* Al registrar se pasa directamente a sus movimientos; al editar se vuelve a la lista. */
+      location.hash = params.id ? '#/clientes' : '#/clientes/' + encodeURIComponent(result.client.id) + '/movimiento';
     });
 
     if (!params.id) form.name.focus();
