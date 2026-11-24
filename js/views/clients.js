@@ -89,7 +89,6 @@
 
   function render() {
     const body = `
-      <p class="date-line">${U.longDate(new Date())}</p>
       <div class="search">
         ${icon('search')}
         <input id="client-search" class="input search-input" type="search" placeholder="Buscar por nombre o documento"
