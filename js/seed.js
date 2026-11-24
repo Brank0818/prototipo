@@ -77,7 +77,6 @@
         steps: [
           ['mov', ago({ mo: 3 }, 9, 0), [lend('10', 2)], ''],
           ['mov', ago({ mo: 2, d: 10 }, 17, 0), [back('10', 2)], 'Devolvió los envases'],
-          ['cancel', ago({ mo: 2, d: 10 }, 17, 5)],
           ['mov', ago({ d: 14 }, 7, 0), [lend('10', 4)], 'Pedido semanal'],
           ['mov', ago({ d: 6 }, 16, 0), [back('10', 1)], '']
         ]
@@ -87,8 +86,7 @@
         createdAt: ago({ mo: 5 }, 11, 0),
         steps: [
           ['mov', ago({ mo: 4 }, 10, 0), [debt(60), lend('10', 1)], ''],
-          ['mov', ago({ mo: 3, d: 2 }, 18, 30), [pay(60), back('10', 1)], 'Saldó toda la deuda'],
-          ['cancel', ago({ mo: 3, d: 2 }, 18, 35)]
+          ['mov', ago({ mo: 3, d: 2 }, 18, 30), [pay(60), back('10', 1)], 'Saldó toda la deuda']
         ]
       },
       {
@@ -105,7 +103,6 @@
         steps: [
           ['mov', ago({ mo: 7 }, 10, 15), [debt(30)], ''],
           ['mov', ago({ mo: 6, d: 15 }, 12, 0), [pay(30)], ''],
-          ['cancel', ago({ mo: 6, d: 15 }, 12, 5)],
           ['status', ago({ mo: 6 }, 9, 0), 'inactivo']
         ]
       },
@@ -143,7 +140,6 @@
           date,
           run: () => {
             if (type === 'mov') D.applyMovement(st, ref.client, { details: step[2], notes: step[3] }, user, date);
-            if (type === 'cancel') D.applyCancel(st, ref.client, D.getActiveContract(ref.client), user, date);
             if (type === 'status') D.applyClientStatus(st, ref.client, step[2], user, date);
           }
         });

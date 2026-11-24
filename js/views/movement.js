@@ -214,16 +214,20 @@
       hideAlert();
       ui.confirm({
         title: '¿Registrar movimiento?',
-        message: check.willCreateContract
+        message: (check.willCreateContract
           ? 'Se creará un nuevo contrato de deuda para ' + check.client.name + '.'
-          : 'Se registrará en el contrato ' + check.active.code + ' de ' + check.client.name + '.',
+          : 'Se registrará en el contrato ' + check.active.code + ' de ' + check.client.name + '.') +
+          (check.willClose ? ' Todos los saldos quedarán en cero y el contrato se cancelará automáticamente.' : ''),
         confirmText: 'Confirmar',
         icon: 'note'
       }).then((ok) => {
         if (!ok) return;
         const result = D.registerMovement(params.id, input);
         if (!result.ok) { showAlert(result.message); return; }
-        ui.toast(result.created ? 'Movimiento registrado · nuevo contrato ' + result.contract.code : 'Movimiento registrado');
+        let message = 'Movimiento registrado';
+        if (result.closed) message += ' · contrato ' + result.contract.code + ' cancelado';
+        else if (result.created) message += ' · nuevo contrato ' + result.contract.code;
+        ui.toast(message);
         location.hash = '#/clientes';
       });
     });

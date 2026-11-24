@@ -2,9 +2,9 @@
 (function (App) {
   'use strict';
 
-  const DATA_KEY = 'glp-control:data:v1';
+  const DATA_KEY = 'glp-control:data:v2';
   const SESSION_KEY = 'glp-control:session:v1';
-  const VERSION = 1;
+  const VERSION = 2; /* v2: cancelación automática de contratos */
 
   function read(key) {
     try {
@@ -33,6 +33,7 @@
     VERSION,
     state: null,
     init() {
+      remove('glp-control:data:v1'); /* datos de la versión anterior */
       const data = read(DATA_KEY);
       if (data && data.version === VERSION && Array.isArray(data.clients)) {
         this.state = data;

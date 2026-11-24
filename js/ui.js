@@ -15,12 +15,24 @@
 
   /* ---------- Estructura de pantalla ---------- */
 
-  function userMenu() {
+  /*
+   * Menú kebab. Siempre muestra el usuario; cada pantalla puede añadir sus propias
+   * opciones (items: [{ label, icon, action | href }]) que aparecen primero.
+   */
+  function menuItem(item) {
+    return item.href
+      ? `<a class="menu-item" role="menuitem" href="${item.href}">${icon(item.icon)}<span>${esc(item.label)}</span></a>`
+      : `<button class="menu-item" role="menuitem" type="button" data-action="${item.action}">${icon(item.icon)}<span>${esc(item.label)}</span></button>`;
+  }
+
+  function userMenu(items, heading) {
     const user = App.session.user();
     if (!user) return '';
+    const own = items && items.length;
     return `
       <div class="menu" role="menu" hidden>
-        <div class="menu-user">
+        ${own ? `${heading ? `<p class="menu-heading">${esc(heading)}</p>` : ''}${items.map(menuItem).join('')}<div class="menu-sep"></div>` : ''}
+        <div class="menu-user${own ? ' compact' : ''}">
           <span class="avatar">${icon('user')}</span>
           <div>
             <p class="menu-name">${esc(user.name)}</p>
@@ -28,24 +40,27 @@
           </div>
         </div>
         <div class="menu-sep"></div>
-        <a class="menu-item" role="menuitem" href="#/ajustes">${icon('sliders')}<span>Ajustes</span></a>
-        <a class="menu-item" role="menuitem" href="#/auditoria">${icon('audit')}<span>Historial de auditoría</span></a>
-        <button class="menu-item" role="menuitem" type="button" data-action="logout">${icon('logout')}<span>Cerrar sesión</span></button>
+        ${own ? '' : menuItem({ href: '#/ajustes', icon: 'sliders', label: 'Ajustes' }) + menuItem({ href: '#/auditoria', icon: 'audit', label: 'Historial de auditoría' })}
+        ${menuItem({ action: 'logout', icon: 'logout', label: 'Cerrar sesión' })}
       </div>`;
   }
 
+  /* opts: { title, back, menuItems, menuHeading, headerExtra } */
   function topbar(opts) {
     const left = opts.back
       ? `<a class="icon-btn round" href="${opts.back}" aria-label="Volver">${icon('back')}</a>`
-      : `<a class="icon-btn round brand" href="#/clientes" aria-label="Inicio">${icon('cylinder')}</a>`;
+      : '<span class="topbar-spacer" aria-hidden="true"></span>';
     return `
-      <header class="topbar">
-        ${left}
-        <h1 class="pill-title">${esc(opts.title)}</h1>
-        <div class="kebab">
-          <button class="icon-btn" type="button" data-kebab aria-label="Menú de usuario" aria-haspopup="true" aria-expanded="false">${icon('kebab')}</button>
-          ${userMenu()}
+      <header class="topbar${opts.headerExtra ? ' has-extra' : ''}">
+        <div class="topbar-row">
+          ${left}
+          <h1 class="pill-title">${esc(opts.title)}</h1>
+          <div class="kebab">
+            <button class="icon-btn" type="button" data-kebab aria-label="Menú" aria-haspopup="true" aria-expanded="false">${icon('kebab')}</button>
+            ${userMenu(opts.menuItems, opts.menuHeading)}
+          </div>
         </div>
+        ${opts.headerExtra ? `<div class="topbar-extra">${opts.headerExtra}</div>` : ''}
       </header>`;
   }
 
@@ -59,7 +74,7 @@
       </nav>`;
   }
 
-  /* opts: { title, back, nav, body, fab, wide } */
+  /* opts: { title, back, nav, body, fab, narrow, menuItems, menuHeading, headerExtra } */
   function layout(opts) {
     return `
       ${topbar(opts)}
@@ -142,7 +157,7 @@
     if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
   }
 
-  /* opts: { title, message, confirmText, cancelText, icon, alertOnly } -> Promise<boolean> */
+  /* opts: { title, message, body (HTML ya escapado), confirmText, cancelText, icon, alertOnly } -> Promise<boolean> */
   function modal(opts) {
     closeModal(false);
     lastFocus = document.activeElement;
@@ -153,6 +168,7 @@
           <span class="modal-ico">${icon(opts.icon || 'info')}</span>
           <h2 class="modal-title" id="modal-title">${esc(opts.title)}</h2>
           ${opts.message ? `<p class="modal-text">${esc(opts.message)}</p>` : ''}
+          ${opts.body ? `<div class="modal-body">${opts.body}</div>` : ''}
           <div class="modal-actions${opts.alertOnly ? ' single' : ''}">
             ${opts.alertOnly ? '' : `<button class="btn btn-secondary" type="button" data-modal-cancel>${esc(opts.cancelText || 'Cancelar')}</button>`}
             <button class="btn btn-primary" type="button" data-modal-ok>${esc(opts.confirmText || 'Aceptar')}</button>

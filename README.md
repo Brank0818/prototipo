@@ -21,10 +21,10 @@ Usuario de prueba: **admin** / **1234** (aparece ya escrito en la pantalla de in
 | Ruta | Pantalla |
 | --- | --- |
 | `#/login` | Inicio de sesión |
-| `#/clientes` | Lista de clientes: con deuda primero y acordeón «Clientes sin deuda»; búsqueda por nombre o documento, filtros y botón (+) |
-| `#/clientes/nuevo` · `#/clientes/:id/editar` | Registro y edición de clientes |
+| `#/clientes` | Lista de clientes: con deuda primero y acordeón «Clientes sin deuda». La búsqueda (en el panel superior) muestra una sola lista de resultados y se limpia al salir de la pantalla. Botón (+) para registrar |
+| `#/clientes/nuevo` · `#/clientes/:id/editar` | Registro y edición de clientes. Al registrar se abre directamente la pantalla de movimientos del nuevo cliente |
 | `#/clientes/:id/movimiento` | Registro de movimientos con varios conceptos y confirmación |
-| `#/clientes/:id` | Detalle: saldo actual, datos, contratos e historial de movimientos |
+| `#/clientes/:id` | Detalle: resumen compacto de la deuda y un acordeón por contrato con su historial. «Ver datos», «Editar» y «Desactivar» están en el menú kebab |
 | `#/resumen` | Panel con totales, balones pendientes, semana y mayores deudas |
 | `#/auditoria` | Historial de auditoría con búsqueda y filtros |
 | `#/ajustes` | Usuario, datos de prueba y cierre de sesión |
@@ -34,7 +34,7 @@ Usuario de prueba: **admin** / **1234** (aparece ya escrito en la pantalla de in
 - **Saldos calculados**, nunca almacenados: se suman los detalles de los movimientos del contrato activo (`+` deuda, `−` pago o entrega), por separado para dinero, 5 kg, 10 kg y 45 kg.
 - Un **movimiento** (id, fecha y hora, responsable, observaciones) puede combinar varios conceptos: deuda de dinero, pago de dinero, deuda de balones y entrega de balones.
 - No se puede pagar ni devolver más de lo adeudado: ningún saldo puede quedar negativo.
-- **Contratos**: como máximo uno activo por cliente. Solo se puede cancelar, mediante una acción explícita, cuando todos los saldos están en cero. Un contrato cancelado no admite movimientos. Si el cliente vuelve a endeudarse, se crea automáticamente un contrato nuevo con su propio historial, y los anteriores se conservan para consulta.
+- **Contratos**: como máximo uno activo por cliente. Se **cancela automáticamente** en cuanto un movimiento deja todos los saldos en cero (la confirmación lo avisa). Un contrato cancelado no admite movimientos. Si el cliente vuelve a endeudarse, se crea automáticamente un contrato nuevo con su propio historial, y los anteriores se conservan para consulta.
 - La **antigüedad** se cuenta desde la creación del contrato activo («3 días», «2 semanas», «1 mes y 5 días», «1 año y 2 meses») y se actualiza sola cada 30 s.
 - Los **clientes** no se eliminan: se desactivan (solo si no tienen deuda pendiente) y pueden reactivarse.
 - Cada acción queda registrada en la **auditoría** con el usuario responsable.

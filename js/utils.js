@@ -119,7 +119,8 @@ window.App = window.App || {};
 
   /* Duración entre dos fechas (para contratos cancelados). */
   function formatDuration(fromIso, toIso) {
-    return formatAge(fromIso, new Date(toIso));
+    const text = formatAge(fromIso, new Date(toIso));
+    return text === 'Recién iniciado' ? 'Menos de 1 minuto' : text;
   }
 
   App.utils = {
