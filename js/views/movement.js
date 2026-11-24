@@ -113,7 +113,7 @@
 
           <label class="field notes-field">
             <span class="field-label">Observaciones <em>Opcional</em></span>
-            <textarea class="input textarea" name="notes" rows="3" maxlength="300" placeholder="Ej.: pagó con Yape, entrega a domicilio…"></textarea>
+            <textarea class="input textarea" name="notes" rows="3" maxlength="300"></textarea>
           </label>
 
           <div class="form-alert" role="alert" hidden>${icon('alert')}<span></span></div>

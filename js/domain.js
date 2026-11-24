@@ -24,10 +24,10 @@
   const CYLINDER_IDS = CYLINDERS.map((c) => c.id);
 
   const CONCEPTS = {
-    deuda_dinero: { id: 'deuda_dinero', label: 'Deuda de dinero', kind: 'money', sign: 1, icon: 'cash' },
-    pago_dinero: { id: 'pago_dinero', label: 'Pago de dinero', kind: 'money', sign: -1, icon: 'cash' },
-    deuda_balon: { id: 'deuda_balon', label: 'Deuda de balones', kind: 'cylinder', sign: 1, icon: 'cylinder' },
-    entrega_balon: { id: 'entrega_balon', label: 'Entrega de balones', kind: 'cylinder', sign: -1, icon: 'cylinder' }
+    deuda_dinero: { id: 'deuda_dinero', label: 'Debe efectivo', kind: 'money', sign: 1, icon: 'cash' },
+    pago_dinero: { id: 'pago_dinero', label: 'Pago efectivo', kind: 'money', sign: -1, icon: 'cash' },
+    deuda_balon: { id: 'deuda_balon', label: 'Debe balon(es)', kind: 'cylinder', sign: 1, icon: 'cylinder' },
+    entrega_balon: { id: 'entrega_balon', label: 'Entrega balon(es)', kind: 'cylinder', sign: -1, icon: 'cylinder' }
   };
   const CONCEPT_LIST = Object.keys(CONCEPTS).map((k) => CONCEPTS[k]);
 
