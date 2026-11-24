@@ -47,12 +47,14 @@
 
   /* opts: { title, back, menuItems, menuHeading, headerExtra } */
   function topbar(opts) {
-    const left = opts.back
-      ? `<a class="icon-btn round" href="${opts.back}" aria-label="Volver">${icon('back')}</a>`
-      : '<span class="topbar-spacer" aria-hidden="true"></span>';
+    /* Con búsqueda (pantalla principal): fila 1 = título y kebab separados; fila 2 = búsqueda. */
+    const split = !!opts.headerExtra && !opts.back;
+    let left = '<span class="topbar-spacer" aria-hidden="true"></span>';
+    if (opts.back) left = `<a class="icon-btn round" href="${opts.back}" aria-label="Volver">${icon('back')}</a>`;
+    if (split) left = '';
     return `
       <header class="topbar${opts.headerExtra ? ' has-extra' : ''}">
-        <div class="topbar-row">
+        <div class="topbar-row${split ? ' is-split' : ''}">
           ${left}
           <h1 class="pill-title">${esc(opts.title)}</h1>
           <div class="kebab">

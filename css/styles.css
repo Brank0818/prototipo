@@ -124,11 +124,8 @@ button {
 }
 
 /* ---------- Barra superior ---------- */
+/* El encabezado es un bloque: la fila del título (.topbar-row) y, opcionalmente, la búsqueda debajo. */
 .topbar {
-  display: grid;
-  grid-template-columns: 48px 1fr 48px;
-  align-items: center;
-  gap: 12px;
   padding: calc(5px + env(safe-area-inset-top)) var(--gutter);
   background: var(--surface);
   flex: none;
@@ -141,6 +138,8 @@ button {
   gap: 12px;
 }
 .topbar-spacer { width: 46px; height: 46px; }
+.topbar-row.is-split { display: flex; justify-content: space-between; }
+.topbar-row.is-split .pill-title { justify-self: auto; }
 /* Panel superior con búsqueda (pantalla principal) */
 .topbar.has-extra { padding-bottom: 16px; border-bottom: 1.5px dotted var(--line); }
 .topbar-extra { max-width: 1040px; margin: 16px auto 0; }
