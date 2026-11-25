@@ -63,16 +63,27 @@
       </div>`;
   }
 
+  /* Conceptos agrupados: efectivo juntos, balones juntos, con una línea divisoria. */
+  function conceptGroup(row, kind, label) {
+    return `
+      <div class="concept-group" role="group" aria-label="${label}">
+        ${D.CONCEPT_LIST.filter((c) => c.kind === kind).map((c) => conceptTile(row, c)).join('')}
+      </div>`;
+  }
+
   function rowCard(row, i) {
+    const concept = D.CONCEPTS[row.concept];
     return `
       <div class="detail-card" data-key="${row.key}">
         <div class="detail-head">
           <span class="detail-num">${U.pad(i + 1)}</span>
-          <span class="detail-title">Concepto</span>
+          <span class="detail-title">${concept ? concept.label : 'Concepto'}</span>
           ${rows.length > 1 ? `<button type="button" class="icon-btn small" data-remove aria-label="Eliminar concepto ${i + 1}">${icon('trash')}</button>` : ''}
         </div>
         <div class="concept-grid" role="radiogroup" aria-label="Concepto ${i + 1}">
-          ${D.CONCEPT_LIST.map((c) => conceptTile(row, c)).join('')}
+          ${conceptGroup(row, 'money', 'Efectivo')}
+          <span class="concept-sep" aria-hidden="true"></span>
+          ${conceptGroup(row, 'cylinder', 'Balones')}
         </div>
         <div class="detail-fields">${fields(row)}</div>
       </div>`;
@@ -90,7 +101,7 @@
           <h2 class="banner-name">${esc(client.name)}</h2>
           <p class="banner-sub">${esc(sub)}</p>
         </div>
-        <a class="btn btn-ghost-light" href="#/clientes/${esc(client.id)}">${icon('history')}<span>Historial</span></a>
+        <a class="btn btn-ghost-light btn-sm" href="#/clientes/${esc(client.id)}" aria-label="Ver historial">${icon('history')}<span>Historial</span></a>
       </section>`;
   }
 
@@ -113,19 +124,19 @@
 
           <label class="field notes-field">
             <span class="field-label">Observaciones <em>Opcional</em></span>
-            <textarea class="input textarea" name="notes" rows="3" maxlength="300"></textarea>
+            <textarea class="input textarea" name="notes" rows="2" maxlength="300"></textarea>
           </label>
 
           <div class="form-alert" role="alert" hidden>${icon('alert')}<span></span></div>
 
           <div class="form-actions">
-            <a class="btn btn-secondary" href="#/clientes">Cancelar</a>
+            <a class="btn btn-secondary" href="#/clientes/${esc(client.id)}">Cancelar</a>
             <button class="btn btn-primary" type="submit">${icon('check')}<span>Guardar movimiento</span></button>
           </div>
         </form>`;
     }
 
-    return ui.layout({ title: 'MOVIMIENTO', back: '#/clientes', body, narrow: true });
+    return ui.layout({ title: 'MOVIMIENTO', back: '#/clientes/' + esc(client.id), body, narrow: true });
   }
 
   function mount(root, params) {
@@ -228,7 +239,8 @@
         if (result.closed) message += ' · contrato ' + result.contract.code + ' cancelado';
         else if (result.created) message += ' · nuevo contrato ' + result.contract.code;
         ui.toast(message);
-        location.hash = '#/clientes';
+        /* Tras guardar se abre el detalle del cliente, con el movimiento ya en su historial. */
+        location.hash = '#/clientes/' + encodeURIComponent(params.id);
       });
     });
   }
