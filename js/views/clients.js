@@ -15,8 +15,9 @@
 
   const view = { query: '', accordionOpen: false };
 
+  /* Al seleccionar un cliente se abre su detalle. */
   function href(client) {
-    return '#/clientes/' + esc(client.id) + '/movimiento';
+    return '#/clientes/' + esc(client.id);
   }
 
   function settledMark(situation) {
